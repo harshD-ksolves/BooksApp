@@ -68,12 +68,7 @@ const Success=styled.span`
   color: teal;
 `;
 
-const Link = styled.a`
-  margin: 5px 0px;
-  font-size: 13px;
-  text-decoration:underline;
-  cursor: pointer;
-`;
+
 
 
 const Login = () => {

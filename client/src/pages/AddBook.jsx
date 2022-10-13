@@ -109,6 +109,16 @@ const SubmitButton=styled.button`
 const CancelButton=styled.button`
   margin: 4px;
 `;
+const Error=styled.span`
+  color: red;
+  font-size: 16px;
+  font-weight: 500;
+  margin:4px 0px;
+  width:100%;
+  text-align:center;
+  margin:12px;
+  padding:12px;
+`;
 
 
 
@@ -124,8 +134,44 @@ const AddBook = () => {
     rating:""
   }
   const [inputs,setInputs]=useState(initialState);
+  const [error,setError]=useState("");
   const user=useSelector((state)=>state.user.user._id);
   const dispatch=useDispatch();
+
+
+
+  const validateInputs=()=>{
+    if(!inputs.title.length){
+      setError("Provide valid title!");
+      return false;
+    }
+    if(!inputs.authors.length){
+      setError("Provide valid Authors!");
+      return false;
+    }
+    if(!inputs.published.length){
+      setError("Provide valid published date!");
+      return false;
+    }
+    if(!inputs.publisher.length){
+      setError("Provide valid Publisher!");
+      return false;
+    }
+    if(!inputs.img.length){
+      setError("Provide valid Image Url!");
+      return false;
+    }
+    if(!inputs.langauage.length){
+      setError("Provide valid book language!");
+      return false;
+    }
+    if(!inputs.rating.length){
+      setError("Provide valid Rating!");
+      return false;
+    }
+    setError("");
+    return true;
+  }
 
   const handleChange = (e) => {
     setInputs((prev) => {
@@ -135,6 +181,10 @@ const AddBook = () => {
 
   const handleSubmit = (e)=>{
     e.preventDefault();
+
+    if(!validateInputs()){
+      return;
+    }
 
     const data={...inputs,user};
     addBook(dispatch,data);
@@ -178,7 +228,9 @@ const AddBook = () => {
                   <CancelButton className="btn btn-danger" onClick={()=>navigate('/myBooks')}>Cancel</CancelButton>
                   <SubmitButton className="btn btn-success" onClick={(e)=>handleSubmit(e)}>Submit</SubmitButton>
                 </ButtonContainer>
+                {error && <Error>{error}</Error>}
             </AddForm>
+            
         </Wrapper>
     </Container>
   )

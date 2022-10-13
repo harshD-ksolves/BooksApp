@@ -119,8 +119,43 @@ const UpdateBook = () => {
   const book = books.filter((book) => book._id === id)[0];
   
   const [inputs,setInputs]=useState(book);
+  const [error,setError]=useState("");
   const user=useSelector((state)=>state.user.user._id);
   const dispatch=useDispatch();
+
+  const validateInputs=()=>{
+    if(!inputs.title.length){
+      setError("Provide valid title!");
+      return false;
+    }
+    if(!inputs.authors.length){
+      setError("Provide valid Authors!");
+      return false;
+    }
+    if(!inputs.published.length){
+      setError("Provide valid published date!");
+      return false;
+    }
+    if(!inputs.publisher.length){
+      setError("Provide valid Publisher!");
+      return false;
+    }
+    if(!inputs.img.length){
+      setError("Provide valid Image Url!");
+      return false;
+    }
+    if(!inputs.langauage.length){
+      setError("Provide valid book language!");
+      return false;
+    }
+    if(!inputs.rating.length){
+      setError("Provide valid Rating!");
+      return false;
+    }
+    setError("");
+    return true;
+  }
+
 
   const handleChange = (e) => {
     setInputs((prev) => {
@@ -130,6 +165,10 @@ const UpdateBook = () => {
 
   const handleSubmit = (e)=>{
     e.preventDefault();
+
+    if(!validateInputs()){
+      return;
+    }
     const data={...inputs,user};
     updateBook(dispatch,data);
     console.log(data);
