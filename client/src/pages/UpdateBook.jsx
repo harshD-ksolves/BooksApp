@@ -231,8 +231,7 @@ const UpdateBook = () => {
         return { state: false };
       },
       () => {
-        // Handle successful uploads on complete
-        // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+        
         getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
 
           const data = { ...inputs, user, img: downloadURL };

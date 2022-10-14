@@ -3,7 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components'
 import { deleteBook } from '../redux/actions';
-
+import app from '../fireBase';
+import { deleteObject,ref,getStorage,} from 'firebase/storage';
 
 const Info=styled.div`
     opacity: 0;
@@ -98,16 +99,31 @@ const Book = ({item}) => {
     const navigate=useNavigate();
     const user=useSelector((state)=>state.user.user);
     const dispatch=useDispatch();
+    const storage = getStorage(app);
+
+    const deleteFile=async()=>{
+        // Create a reference to the file to delete
+        const desertRef = ref(storage, item.img);
+        try {
+          await deleteObject(desertRef);
+          console.log("File Deleted SuccessFully");
+          return true;
+        } catch (error) {
+          console.log(error);
+          return false;
+        }
+      }
+
 
     const handleDelete=(e,id)=>{
         e.preventDefault();
-        const data={
-            id,user:user._id
+         if(deleteFile()){
+            const data={id,user:user._id}
+            deleteBook(dispatch,data);
         }
-        deleteBook(dispatch,data);
     }
-
-
+    
+    
   return (
     <Container >
         <Image src={item.img}/>

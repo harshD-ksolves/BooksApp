@@ -128,8 +128,16 @@ const Error = styled.span`
   margin:12px;
   padding:12px;
 `;
-
-
+const Success=styled.span`
+  color: teal;
+  font-size: 16px;
+  font-weight: 500;
+  margin:4px 0px;
+  width:100%;
+  text-align:center;
+  margin:12px;
+  padding:12px;
+`;
 
 const AddBook = () => {
   const navigate = useNavigate();
@@ -147,6 +155,7 @@ const AddBook = () => {
   const [inputs, setInputs] = useState(initialState);
   const [image, setImage] = useState(null);
   const [error, setError] = useState("");
+  const [success,setSuccess]=useState("");
   const user = useSelector((state) => state.user.user._id);
   const dispatch = useDispatch();
 
@@ -223,6 +232,7 @@ const AddBook = () => {
           const data = { ...inputs, user, img: downloadURL };
           addBook(dispatch, data);
           setInputs(initialState);
+          setSuccess("Book Added Successfuly!");
           console.log(data);
         });
       }
@@ -230,9 +240,6 @@ const AddBook = () => {
 
 
   }
-
-
-
 
   const handleChange = (e) => {
 
@@ -287,8 +294,8 @@ const AddBook = () => {
             <SubmitButton className="btn btn-success" onClick={(e) => handleSubmit(e)}>Submit</SubmitButton>
           </ButtonContainer>
           {error && <Error>{error}</Error>}
+          {success && <Success>{success}</Success>}
         </AddForm>
-
       </Wrapper>
     </Container>
   )

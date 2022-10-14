@@ -11,6 +11,7 @@ const Container = styled.div`
 const BookContainer = styled.div`
   padding: 20px;
   display: flex;
+  max-width: 100%;
   flex-wrap: wrap;
   justify-content: space-between;
 `;
