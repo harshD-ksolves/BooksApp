@@ -1,8 +1,17 @@
-import React, { useState } from 'react'
+import React, { useState } from 'react';
+import {
+  getStorage,
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+} from "firebase/storage";
+import app from '../fireBase';
+
+
 import { useDispatch, useSelector } from 'react-redux';
-import {  useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import styled from "styled-components";
-import {languages} from '../data';
+import { languages } from '../data';
 import { addBook } from '../redux/actions';
 
 
@@ -34,17 +43,17 @@ const Title = styled.h1`
   text-align:center ;
 `;
 
-const AddForm=styled.form`
+const AddForm = styled.form`
     border-radius:8px;
     border:1px solid green;
 `;
-const FormConatiner=styled.div`
+const FormConatiner = styled.div`
     display: flex;
     height: 100%;
     align-items: center;
     justify-content:space-between;
 `;
-const LeftForm=styled.div`
+const LeftForm = styled.div`
     flex: 1;
     width:100%;
     margin:8px 5px;
@@ -54,7 +63,7 @@ const LeftForm=styled.div`
     flex-direction:vertical ;
 `;
 
-const RightForm=styled.div`
+const RightForm = styled.div`
     flex:1;
     margin:8px 5px;
     padding:8px;
@@ -62,7 +71,7 @@ const RightForm=styled.div`
     flex-wrap:wrap ;
     flex-direction:vertical ;
 `;
-const InputLabel=styled.label`
+const InputLabel = styled.label`
     width:100%;
     margin:-5px  3px;
     padding: 8px;
@@ -82,7 +91,7 @@ const Input = styled.input`
   }
 `;
 
-const SelectLabel=styled.label`
+const SelectLabel = styled.label`
     width:100%;
     margin:0px  3px;
     padding: 8px;
@@ -90,26 +99,26 @@ const SelectLabel=styled.label`
     color:gray;
    
 `;
-const Select=styled.select`
+const Select = styled.select`
 `;
-const Option=styled.option`
+const Option = styled.option`
 `;
 
 
 
-const ButtonContainer=styled.div`
+const ButtonContainer = styled.div`
   margin:0px 6px;
   padding: 8px;
   display: flex;
   justify-content:space-between;
 `;
-const SubmitButton=styled.button`
+const SubmitButton = styled.button`
   margin: 4px;
 `
-const CancelButton=styled.button`
+const CancelButton = styled.button`
   margin: 4px;
 `;
-const Error=styled.span`
+const Error = styled.span`
   color: red;
   font-size: 16px;
   font-weight: 500;
@@ -123,49 +132,53 @@ const Error=styled.span`
 
 
 const AddBook = () => {
-  const navigate=useNavigate();
-  const initialState={
-    title:"",
-    authors:"",
-    published:"",
-    publisher:"",
-    img:"",
-    langauage:"",
-    rating:""
+  const navigate = useNavigate();
+  const storage = getStorage(app);
+
+  const initialState = {
+    title: "",
+    authors: "",
+    published: "",
+    publisher: "",
+    img: null,
+    language: "",
+    rating: ""
   }
-  const [inputs,setInputs]=useState(initialState);
-  const [error,setError]=useState("");
-  const user=useSelector((state)=>state.user.user._id);
-  const dispatch=useDispatch();
+  const [inputs, setInputs] = useState(initialState);
+  const [image, setImage] = useState(null);
+  const [error, setError] = useState("");
+  const user = useSelector((state) => state.user.user._id);
+  const dispatch = useDispatch();
 
 
 
-  const validateInputs=()=>{
-    if(!inputs.title.length){
+  const validateInputs = () => {
+    if (!inputs.title.length) {
       setError("Provide valid title!");
       return false;
     }
-    if(!inputs.authors.length){
+    if (!inputs.authors.length) {
       setError("Provide valid Authors!");
       return false;
     }
-    if(!inputs.published.length){
+    if (!inputs.published.length) {
       setError("Provide valid published date!");
       return false;
     }
-    if(!inputs.publisher.length){
+    if (!inputs.publisher.length) {
       setError("Provide valid Publisher!");
       return false;
     }
-    if(!inputs.img.length){
+    if (!image.name) {
       setError("Provide valid Image Url!");
       return false;
     }
-    if(!inputs.langauage.length){
+    if (!inputs.language) {
+      console.log(inputs.language);
       setError("Provide valid book language!");
       return false;
     }
-    if(!inputs.rating.length){
+    if (!inputs.rating.length) {
       setError("Provide valid Rating!");
       return false;
     }
@@ -173,65 +186,110 @@ const AddBook = () => {
     return true;
   }
 
-  const handleChange = (e) => {
-    setInputs((prev) => {
-      return { ...prev, [e.target.name]: e.target.value };
-    });
-  };
 
-  const handleSubmit = (e)=>{
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if(!validateInputs()){
+    if (!validateInputs()) {
       return;
     }
 
-    const data={...inputs,user};
-    addBook(dispatch,data);
-    setInputs(initialState);
-    console.log(data);
+    const fileName = new Date().getTime() + image.name;
+    const StorageRef = ref(storage, "books/" + fileName);
+    const uploadTask = uploadBytesResumable(StorageRef, image);
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        console.log("Upload is " + progress + "% done");
+        switch (snapshot.state) {
+          case "paused":
+            console.log("Upload is paused");
+            break;
+          case "running":
+            console.log("Upload is running");
+            break;
+          default:
+        }
+      },
+      (error) => {
+        console.log(error);
+        return { state: false };
+      },
+      () => {
+        // Handle successful uploads on complete
+        // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+
+          const data = { ...inputs, user, img: downloadURL };
+          addBook(dispatch, data);
+          setInputs(initialState);
+          console.log(data);
+        });
+      }
+    );
+
+
   }
+
+
+
+
+  const handleChange = (e) => {
+
+    if (e.target.name === "img") {
+      setInputs((prev) => {
+        return { ...prev, [e.target.name]: e.target.files[0] };
+      });
+    } else {
+      setInputs((prev) => {
+        return { ...prev, [e.target.name]: e.target.value };
+      });
+    }
+
+  };
+
+
 
   return (
     <Container>
-        <Wrapper>
-            <Title>Add Book</Title>
-            <AddForm>
-              <FormConatiner>
-              <LeftForm>
-                    <InputLabel htmlFor='title'>Book Title :</InputLabel>
-                    <Input className="form-control" name="title" value={inputs.title || ''} placeholder="Enter Book Title" id='title' onChange={(e)=>handleChange(e)}/>
-                    <InputLabel htmlFor='published'>Book Published :</InputLabel>
-                    <Input className="form-control" name='published' value={inputs.published || ''} type="date" placeholder="published" id="published"onChange={(e)=>handleChange(e)} />
-                    <InputLabel htmlFor='publisher'>Book Publisher :</InputLabel>
-                    <Input className="form-control"name='publisher' value={inputs.publisher || ''} placeholder="Enter Book Publisher" id="publisher" onChange={(e)=>handleChange(e)}/> 
-                    <SelectLabel htmlFor='language'>Select Language :</SelectLabel>
-                        <Select id="language" className='form-select' name='language'  onChange={(e)=>handleChange(e)}>
-                          <Option>Select Language</Option>
-                          {
-                              languages.map((lang)=><option value={lang} key={lang} {...inputs.langauage===lang?'selected':''}  >{lang}</option>)
-                          } 
-                        </Select>
-                </LeftForm>
-                <RightForm>
-                    <InputLabel htmlFor='authors'>Book Author/Authors :</InputLabel>
-                    <Input className="form-control" name='authors' value={inputs.authors|| ''} placeholder="Enter Book Author/Authors" id="authors" onChange={(e)=>handleChange(e)}/>
-                    <InputLabel htmlFor='image'>Book Image Url :</InputLabel>
-                    <Input className="form-control" name='img' value={inputs.img|| ''} placeholder="Enter Image Url"  id="image" onChange={(e)=>handleChange(e)}/>
-                    <InputLabel htmlFor='price'>Book Price :</InputLabel>
-                    <Input className="form-control" type='number' name='price' value={inputs.price|| ''} placeholder="Enter price" id="price" onChange={(e)=>handleChange(e)}/>
-                    <InputLabel htmlFor='rating'>Book Rating :</InputLabel>
-                    <Input className="form-control" name='rating' type='number' value={inputs.rating|| ''} placeholder="Enter Rating" id="rating" onChange={(e)=>handleChange(e)}/>
-                </RightForm>
-              </FormConatiner>
-                <ButtonContainer>
-                  <CancelButton className="btn btn-danger" onClick={()=>navigate('/myBooks')}>Cancel</CancelButton>
-                  <SubmitButton className="btn btn-success" onClick={(e)=>handleSubmit(e)}>Submit</SubmitButton>
-                </ButtonContainer>
-                {error && <Error>{error}</Error>}
-            </AddForm>
-            
-        </Wrapper>
+      <Wrapper>
+        <Title>Add Book</Title>
+        <AddForm>
+          <FormConatiner>
+            <LeftForm>
+              <InputLabel htmlFor='title'>Book Title :</InputLabel>
+              <Input className="form-control" name="title" value={inputs.title || ''} placeholder="Enter Book Title" id='title' onChange={(e) => handleChange(e)} />
+              <InputLabel htmlFor='published'>Book Published :</InputLabel>
+              <Input className="form-control" name='published' value={inputs.published || ''} type="date" placeholder="published" id="published" onChange={(e) => handleChange(e)} />
+              <InputLabel htmlFor='publisher'>Book Publisher :</InputLabel>
+              <Input className="form-control" name='publisher' value={inputs.publisher || ''} placeholder="Enter Book Publisher" id="publisher" onChange={(e) => handleChange(e)} />
+              <SelectLabel htmlFor='language'>Select Language :</SelectLabel>
+              <Select id="language" className='form-select' name='language' onChange={(e) => handleChange(e)} defaultValue={inputs.language}>
+                <Option>Select Language</Option>
+                {
+                  languages.map((lang) => <option value={lang} key={lang}  >{lang}</option>)
+                }
+              </Select>
+            </LeftForm>
+            <RightForm>
+              <InputLabel htmlFor='authors'>Book Author/Authors :</InputLabel>
+              <Input className="form-control" name='authors' value={inputs.authors || ''} placeholder="Enter Book Author/Authors" id="authors" onChange={(e) => handleChange(e)} />
+              <InputLabel htmlFor='formFile'>Book Image :</InputLabel>
+              <Input className="form-control" name='img' type='file' placeholder="Upload Image" id="formFile" onChange={(e) => setImage(e.target.files[0])} accept="image/x-png,image/gif,image/jpeg" />
+              <InputLabel htmlFor='price'>Book Price :</InputLabel>
+              <Input className="form-control" type='number' name='price' value={inputs.price || ''} placeholder="Enter price" id="price" onChange={(e) => handleChange(e)} />
+              <InputLabel htmlFor='rating'>Book Rating :</InputLabel>
+              <Input className="form-control" name='rating' type='number' value={inputs.rating || ''} placeholder="Enter Rating" id="rating" onChange={(e) => handleChange(e)} />
+            </RightForm>
+          </FormConatiner>
+          <ButtonContainer>
+            <CancelButton className="btn btn-danger" onClick={() => navigate('/myBooks')}>Cancel</CancelButton>
+            <SubmitButton className="btn btn-success" onClick={(e) => handleSubmit(e)}>Submit</SubmitButton>
+          </ButtonContainer>
+          {error && <Error>{error}</Error>}
+        </AddForm>
+
+      </Wrapper>
     </Container>
   )
 }

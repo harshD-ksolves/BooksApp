@@ -2,6 +2,16 @@ import React, { useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux';
 import {  useNavigate, useParams } from 'react-router-dom';
 import styled from "styled-components";
+
+import {
+  getStorage,
+  ref,
+  deleteObject,
+  uploadBytesResumable,
+  getDownloadURL,
+} from "firebase/storage";
+
+import app from '../fireBase';
 import {languages} from '../data';
 import { updateBook } from '../redux/actions';
 
@@ -110,45 +120,67 @@ const CancelButton=styled.button`
   margin: 4px;
 `;
 
-
+const Error = styled.span`
+  color: red;
+  font-size: 16px;
+  font-weight: 500;
+  margin:4px 0px;
+  width:100%;
+  text-align:center;
+  margin:12px;
+  padding:12px;
+`;
+const Success=styled.span`
+  color: teal;
+  font-size: 16px;
+  font-weight: 500;
+  margin:4px 0px;
+  width:100%;
+  text-align:center;
+  margin:12px;
+  padding:12px;
+`;
 
 const UpdateBook = () => {
   const navigate=useNavigate();
+  const storage = getStorage(app);
   const books = useSelector((state) => state.books.books);
   let { id } = useParams();
   const book = books.filter((book) => book._id === id)[0];
   
   const [inputs,setInputs]=useState(book);
+  const [image, setImage] = useState(null);
   const [error,setError]=useState("");
+  const [success,setSuccess]=useState("");
   const user=useSelector((state)=>state.user.user._id);
   const dispatch=useDispatch();
 
   const validateInputs=()=>{
-    if(!inputs.title.length){
+    if(!inputs.title){
       setError("Provide valid title!");
       return false;
     }
-    if(!inputs.authors.length){
+    if(!inputs.authors){
       setError("Provide valid Authors!");
       return false;
     }
-    if(!inputs.published.length){
+    if(!inputs.published){
       setError("Provide valid published date!");
       return false;
     }
-    if(!inputs.publisher.length){
+    if(!inputs.publisher){
       setError("Provide valid Publisher!");
       return false;
     }
-    if(!inputs.img.length){
+    if(!inputs.img){
       setError("Provide valid Image Url!");
       return false;
     }
-    if(!inputs.langauage.length){
+    if(!inputs.language){
       setError("Provide valid book language!");
       return false;
     }
-    if(!inputs.rating.length){
+    if(!inputs.rating){
       setError("Provide valid Rating!");
       return false;
     }
@@ -156,6 +188,18 @@ const UpdateBook = () => {
     return true;
   }
 
+  const deleteFile=async()=>{
+    // Create a reference to the file to delete
+    const desertRef = ref(storage, book.img);
+    try {
+      await deleteObject(desertRef);
+      console.log("File Deleted SuccessFully");
+      return true;
+    } catch (error) {
+      console.log(error);
+      return false;
+    }
+  }
 
   const handleChange = (e) => {
     setInputs((prev) => {
@@ -163,15 +207,63 @@ const UpdateBook = () => {
     });
   };
 
-  const handleSubmit = (e)=>{
+  const uploadImage=()=>{
+    const fileName = new Date().getTime() + image.name;
+    const StorageRef = ref(storage, "books/" + fileName);
+    const uploadTask = uploadBytesResumable(StorageRef, image);
+    uploadTask.on(
+      "state_changed",
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        console.log("Upload is " + progress + "% done");
+        switch (snapshot.state) {
+          case "paused":
+            console.log("Upload is paused");
+            break;
+          case "running":
+            console.log("Upload is running");
+            break;
+          default:
+        }
+      },
+      (error) => {
+        console.log(error);
+        return { state: false };
+      },
+      () => {
+        // Handle successful uploads on complete
+        // For instance, get the download URL: https://firebasestorage.googleapis.com/...
+        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+
+          const data = { ...inputs, user, img: downloadURL };
+          updateBook(dispatch, data);
+          setSuccess('Book Updated SuccessFully with New Image!');
+          console.log(data);
+        });
+      }
+    );
+  }
+
+
+  const handleSubmit =async(e)=>{
     e.preventDefault();
 
     if(!validateInputs()){
       return;
     }
-    const data={...inputs,user};
-    updateBook(dispatch,data);
-    console.log(data);
+    if(!image){
+      const data={...inputs,user};
+      updateBook(dispatch,data);
+      setSuccess('Book Updated SuccessFully!');
+      console.log(data);
+    }else{
+      const deleteImage= book.img ? await deleteFile():false;
+      console.log(deleteImage);
+      if(deleteImage){
+         await uploadImage();
+      }
+    }
+    
   }
 
   return (
@@ -200,8 +292,8 @@ const UpdateBook = () => {
                 <RightForm>
                     <InputLabel htmlFor='authors'>Book Author/Authors :</InputLabel>
                     <Input className="form-control" name='authors' value={inputs.authors|| ''} placeholder="Enter Book Author/Authors" id="authors" onChange={(e)=>handleChange(e)}/>
-                    <InputLabel htmlFor='image'>Book Image Url :</InputLabel>
-                    <Input className="form-control" name='img' value={inputs.img|| ''} placeholder="Enter Image Url"  id="image" onChange={(e)=>handleChange(e)}/>
+                    <InputLabel htmlFor='formFile'>New Book Image :</InputLabel>
+                    <Input className="form-control" name='img' type='file' placeholder="Upload Image" id="formFile" onChange={(e) => setImage(e.target.files[0])} accept="image/x-png,image/gif,image/jpeg" />
                     <InputLabel htmlFor='price'>Book Price :</InputLabel>
                     <Input className="form-control" type='number' min="1" name='price' value={inputs.price|| ''} placeholder="Enter price" id="price" onChange={(e)=>handleChange(e)}/>
                     <InputLabel htmlFor='rating'>Book Rating :</InputLabel>
@@ -209,9 +301,11 @@ const UpdateBook = () => {
                 </RightForm>
               </FormConatiner>
                 <ButtonContainer>
-                  <CancelButton className="btn btn-danger" onClick={()=>navigate(`/book/${id}`)}>Cancel</CancelButton>
+                  <CancelButton className="btn btn-danger" onClick={()=>navigate(`/`)}>Cancel</CancelButton>
                   <SubmitButton className="btn btn-success" onClick={(e)=>handleSubmit(e)}>Update</SubmitButton>
                 </ButtonContainer>
+                {error && <Error>{error}</Error>}
+                {success && <Success>{success}</Success>}
             </AddForm>
         </Wrapper>
     </Container>
